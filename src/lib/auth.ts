@@ -41,34 +41,36 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
-          console.log('[Auth] Login attempt for:', credentials?.email)
+          console.error('[Auth] Login attempt for:', credentials?.email)
 
           if (!credentials?.email || !credentials?.password) {
-            console.log('[Auth] Missing credentials')
-            throw new Error('Invalid credentials')
+            console.error('[Auth] Missing credentials')
+            throw new Error('Missing credentials')
           }
 
+          console.error('[Auth] Querying database...')
           const user = await prisma.user.findUnique({
             where: { email: credentials.email },
           })
 
-          console.log('[Auth] User found:', !!user)
+          console.error('[Auth] User found:', !!user, user?.email)
 
           if (!user || !user.isActive) {
-            console.log('[Auth] User not found or inactive')
-            throw new Error('Invalid credentials')
+            console.error('[Auth] User not found or inactive')
+            throw new Error('User not found')
           }
 
+          console.error('[Auth] Comparing password...')
           const isValidPassword = await bcrypt.compare(
             credentials.password,
             user.passwordHash
           )
 
-          console.log('[Auth] Password valid:', isValidPassword)
+          console.error('[Auth] Password valid:', isValidPassword)
 
           if (!isValidPassword) {
-            console.log('[Auth] Invalid password')
-            throw new Error('Invalid credentials')
+            console.error('[Auth] Invalid password')
+            throw new Error('Wrong password')
           }
 
           // Update last login
@@ -87,7 +89,7 @@ export const authOptions: NextAuthOptions = {
             },
           })
 
-          console.log('[Auth] Login successful for:', user.email)
+          console.error('[Auth] Login successful for:', user.email)
 
           return {
             id: user.id,
@@ -96,8 +98,10 @@ export const authOptions: NextAuthOptions = {
             role: user.role,
           }
         } catch (error) {
-          console.error('[Auth] Error during login:', error)
-          throw new Error('Invalid credentials')
+          console.error('[Auth] Error during login:', error instanceof Error ? error.message : error)
+          console.error('[Auth] Error stack:', error instanceof Error ? error.stack : 'no stack')
+          // Re-throw with original message for debugging
+          throw error
         }
       },
     }),
